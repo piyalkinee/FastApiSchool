@@ -2,7 +2,9 @@ from typing import Optional
 from pydantic import BaseModel
 from database.coredb import Base
 from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime
+from sqlalchemy.orm import relationship
 from datetime import datetime
+from models.association_models import user_course
 
 
 class UserCreate(BaseModel):
@@ -39,3 +41,8 @@ class UserDB(Base):
     admin = Column(Boolean, default=False)
     disabled = Column(Boolean, default=False)
     deleted = Column(Boolean, default=False)
+
+    participation_in_courses = relationship(
+        "CourseDB",
+        secondary=user_course,
+        back_populates="users_in_course")

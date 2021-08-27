@@ -4,6 +4,7 @@ from database.coredb import Base
 from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from datetime import datetime
+from models.association_models import user_course
 
 
 class CourseCreate(BaseModel):
@@ -29,3 +30,8 @@ class CourseDB(Base):
     user_creator = relationship("UserDB")
     user_creator_id = Column(Integer, ForeignKey("users.id"))
     deleted = Column(Boolean, default=False)
+
+    users_in_course = relationship(
+        "UserDB",
+        secondary=user_course,
+        back_populates="participation_in_courses")
