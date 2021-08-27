@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from database.coredb import get_db
-from services.autorization import authenticate_user
+from services.autorization import authenticate_user, get_password_hash
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from models.user_models import UserCreate, UserDB
@@ -24,6 +24,7 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
 @routes.post("/registration")
 async def registration(user_data: UserCreate, db: Session = Depends(get_db)):
     new_user = UserDB(**user_data.dict())
+    new_user.password = get_password_hash(user_data.password)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

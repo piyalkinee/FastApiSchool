@@ -1,6 +1,5 @@
 from typing import Optional
 from pydantic import BaseModel
-from sqlalchemy.sql.expression import false
 from database.coredb import Base
 from sqlalchemy import Column, String, Integer, Boolean, Text, DateTime
 from datetime import datetime
@@ -16,7 +15,7 @@ class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
     password: Optional[str] = None
-    disabled: Optional[bool] = false
+    disabled: Optional[bool] = False
 
 
 class UserDB(Base):
@@ -26,6 +25,8 @@ class UserDB(Base):
     name = Column(String(256))
     email = Column(String(256), unique=True)
     password = Column(String(256))
-    disabled = Column(Boolean, default=false)
+    group = Column(String(256), default="student")
     time_of_creation = Column(DateTime, default=datetime.now())
-    deleted = Column(Boolean, default=false)
+    admin = Column(Boolean, default=False)
+    disabled = Column(Boolean, default=False)
+    deleted = Column(Boolean, default=False)
