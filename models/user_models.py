@@ -14,15 +14,24 @@ class UserCreate(BaseModel):
 class UserUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[str] = None
-    password: Optional[str] = None
-    disabled: Optional[bool] = False
+    password_new: Optional[str] = None
+    password_old: Optional[str] = None
+
+
+class UserResponse(BaseModel):
+    name: str
+    email: str
+    group: str
+    time_of_creation: datetime
+    admin: bool
+    disabled: bool
 
 
 class UserDB(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True, unique=True)
-    name = Column(String(256))
+    name = Column(String(256), unique=True)
     email = Column(String(256), unique=True)
     password = Column(String(256))
     group = Column(String(256), default="student")
