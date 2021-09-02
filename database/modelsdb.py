@@ -1,3 +1,3 @@
 from .coredb import Base
-from models.user_models import UserDB
-from models.course_models import CourseDB
+from modules.user.user_models import UserDB
+from modules.course.course_models import CourseDB
