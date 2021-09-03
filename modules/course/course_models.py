@@ -4,6 +4,7 @@ from sqlalchemy import Column, String, Integer, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from database.association_models import user_course
 from .course_schemas import CourseCreate, CourseUpdate
+from modules.user.user_models import UserDBAsync
 
 
 class CourseDB(Base):
@@ -29,11 +30,16 @@ CourseDBAsync = CourseDB.__table__
 
 async def get_one(id: int):
     course = dict(await database.fetch_one(CourseDBAsync.select().where(CourseDBAsync.c.id == id)))
+    user_course_all = [dict(u_c) for u_c in await database.fetch_all(user_course.select().where(user_course.c.course == id))]
+    course["users_in_course"] = user_course_all
     return course
 
 
 async def get_range(limit: int, skip: int):
     courses = [dict(course) for course in await database.fetch_all(CourseDBAsync.select().limit(limit).offset(skip))]
+    for course in courses:
+        print(course)
+        course["users_in_course"] = [dict(u_c) for u_c in await database.fetch_all(user_course.select().where(user_course.c.course == course["id"]))]
     return courses
 
 
@@ -58,6 +64,12 @@ async def update(id: int, course_update_data: CourseUpdate):
 
     query = CourseDBAsync.update().where(
         CourseDBAsync.c.id == id).values(**user_for_update)
+    await database.execute(query)
+
+
+async def add_user_to_course(course_id: int, user_id: int):
+    query = user_course.insert().values(user=user_id, course=course_id)
+
     await database.execute(query)
 
 

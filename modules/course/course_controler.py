@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from database.coredb import get_db
 from modules.access.services.autorization import get_current_active_user
-from sqlalchemy.orm import Session
-from modules.user.user_models import UserDB
-from .course_models import CourseDB, get_one, get_range, create, update, delete, check_id, check_name
+from modules.user.user_models import UserDB, get_one as user_get_one
+from .course_models import CourseDB, get_one, get_range, create, add_user_to_course, update, delete, check_id, check_name
 from .course_schemas import CourseCreate, CourseResponse, CourseUpdate
 from typing import List
 
@@ -69,7 +67,7 @@ async def course_create(course_data: CourseCreate, auth_user: UserDB = Depends(g
 
 
 @routes.put("/addUser/{course_id}/{user_id}")
-async def course_add_user(course_id: int, user_id: int, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def course_add_user(course_id: int, user_id: int, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
@@ -77,32 +75,27 @@ async def course_add_user(course_id: int, user_id: int, auth_user: UserDB = Depe
             detail="Access is denied"
         )
 
-    course_for_update = db.query(CourseDB).filter(
-        CourseDB.id == course_id).first()
-    if not course_for_update:
+    course_for_update = get_one(course_id)
+    if course_for_update == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not found"
         )
 
-    user_from_db = db.query(UserDB).filter(
-        CourseDB.id == user_id).first()
-    if not course_for_update:
+    user_from_db = user_get_one(user_id)
+    if user_from_db == None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not found"
         )
 
-    course_for_update.users_in_course.append(user_from_db)
-
-    db.commit()
-    db.refresh(course_for_update)
+    await add_user_to_course(course_id, user_id)
 
     return f"User with id:{user_id} add to course with id:{course_id}"
 
 
 @routes.put("/update/{course_id}")
-async def course_update(course_id: int, course_data: CourseUpdate, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def course_update(course_id: int, course_data: CourseUpdate, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
@@ -130,7 +123,7 @@ async def course_update(course_id: int, course_data: CourseUpdate, auth_user: Us
 
 
 @routes.delete("/delete/{course_id}")
-async def course_delete(course_id: int, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def course_delete(course_id: int, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
