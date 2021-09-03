@@ -16,10 +16,13 @@ class UserUpdate(BaseModel):
     password_old: Optional[str] = None
 
 
-class UserResponse(BaseModel):
+class User(BaseModel):
     name: str
-    email: str
+    email: Optional[str] = None
     group: str
     time_of_creation: datetime
     admin: bool
     disabled: bool
+
+    class Config:
+        orm_mode = True

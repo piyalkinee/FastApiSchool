@@ -1,16 +1,15 @@
+from modules.course.course_models import check_id
 from fastapi import APIRouter, Depends, HTTPException, status
-from database.coredb import get_db
-from sqlalchemy.orm import Session
-from .user_models import UserDB
-from .user_schemas import UserUpdate, UserResponse
-from modules.access.services.autorization import get_current_active_user, verify_password
+from .user_models import UserDB, get_one, update, delete, check_name, check_email, check_newpassword
+from .user_schemas import UserUpdate, User
+from modules.access.services.autorization import get_current_active_user
 from modules.access.services.passtools import get_password_hash
 
 routes = APIRouter(prefix="/user", tags=["User"])
 
 
-@routes.get("/getOne/{user_id}", response_model=UserResponse)
-async def user_get_one(user_id: int, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+@routes.get("/getOne/{user_id}", response_model=User)
+async def user_get_one(user_id: int, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
@@ -18,19 +17,18 @@ async def user_get_one(user_id: int, auth_user: UserDB = Depends(get_current_act
             detail="Access is denied"
         )
 
-    user_from_db = db.query(UserDB).filter(UserDB.id == user_id).first()
-
-    if not user_from_db:
+    user = await get_one(user_id)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not found"
         )
 
-    return user_from_db.__dict__
+    return user
 
 
 @routes.put("/update/{user_id}")
-async def user_update(user_id: int, user_update_data: UserUpdate, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def user_update(user_id: int, user_update_data: UserUpdate, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
@@ -38,57 +36,46 @@ async def user_update(user_id: int, user_update_data: UserUpdate, auth_user: Use
             detail="Access is denied"
         )
 
-    user_for_update = db.query(UserDB).filter(UserDB.id == user_id).first()
+    user_for_update = UserDB(** await get_one(user_id))
+    if user_for_update == None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not found"
+        )
 
     if user_update_data.name != None:
-
-        user_with_name = db.query(UserDB).filter(
-            UserDB.name == user_update_data.name).first()
-
-        if not user_with_name:
-            user_for_update.name = user_update_data.name
-        else:
+        if await check_name(user_update_data.name) == True:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This name is already in use"
             )
 
     if user_update_data.email != None:
-
-        user_with_email = db.query(UserDB).filter(
-            UserDB.email == user_update_data.email).first()
-
-        if not user_with_email:
-            user_for_update.email = user_update_data.email
-        else:
+        if await check_email(user_update_data.email) == True:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This email is already in use"
             )
 
-    if user_update_data.password_new != None:
+    new_password_hash = None
 
-        if not user_update_data.password_old:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Old password not specified"
-            )
-        if not verify_password(user_update_data.password_old, user_for_update.password):
+    if user_update_data.password_new != None:
+        salt = await check_newpassword(user_id, user_update_data.password_old)
+        if salt == None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Old password specified incorrectly"
             )
-        user_for_update.password = get_password_hash(
-            user_update_data.password_new)
+        new_password_hash = await get_password_hash(
+            user_update_data.password_new, salt)
 
-    db.commit()
-    db.refresh(user_for_update)
+    await update(user_id, user_update_data, new_password_hash)
 
     return f"User with id:{user_id} updated"
 
 
 @routes.delete("/delete/{user_id}")
-async def user_delete(user_id: int, auth_user: UserDB = Depends(get_current_active_user), db: Session = Depends(get_db)):
+async def user_delete(user_id: int, auth_user: UserDB = Depends(get_current_active_user)):
 
     if auth_user.admin != True:
         raise HTTPException(
@@ -96,15 +83,12 @@ async def user_delete(user_id: int, auth_user: UserDB = Depends(get_current_acti
             detail="Access is denied"
         )
 
-    user_for_delete = db.query(UserDB).filter(UserDB.id == user_id).first()
-    if not user_for_delete:
+    if check_id(user_id) == False:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Not found"
         )
 
-    user_for_delete.deleted = True
-    db.commit()
-    db.refresh(user_for_delete)
+    await delete(user_id)
 
     return f"User with id:{user_id} deleted"

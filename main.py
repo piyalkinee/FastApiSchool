@@ -1,12 +1,23 @@
 from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.responses import Response
-from database.coredb import SessionLocal
+from database.coredb import SessionLocal, database
 from routes import routes
 
 app = FastAPI(title="School")
 
 app.include_router(routes)
+
+
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
+
 
 @app.middleware("http")
 async def middleware(request: Request, call_next):
